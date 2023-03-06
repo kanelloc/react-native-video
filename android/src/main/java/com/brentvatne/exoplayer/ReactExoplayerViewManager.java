@@ -18,6 +18,8 @@ import com.google.android.exoplayer2.util.Util;
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.upstream.RawResourceDataSource;
 
+
+import java.io.File;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Map;
@@ -80,6 +82,9 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private static final String PROP_SELECTED_VIDEO_TRACK_VALUE = "value";
     private static final String PROP_HIDE_SHUTTER_VIEW = "hideShutterView";
     private static final String PROP_CONTROLS = "controls";
+    private static final String PROP_CACHE = "cache";
+    private static final String PROP_CACHE_CONFIG_DIR = "dir";
+    private static final String PROP_CACHE_CONFIG_MAX_SIZE_BYTES = "maxSizeBytes";
 
     private static final String PROP_SUBTITLE_STYLE = "subtitleStyle";
 
@@ -401,6 +406,26 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
             minBufferMemoryReservePercent = bufferConfig.hasKey(PROP_BUFFER_CONFIG_MIN_BUFFER_MEMORY_RESERVE_PERCENT)
                     ? bufferConfig.getDouble(PROP_BUFFER_CONFIG_MIN_BUFFER_MEMORY_RESERVE_PERCENT) : minBufferMemoryReservePercent;
             videoView.setBufferConfig(minBufferMs, maxBufferMs, bufferForPlaybackMs, bufferForPlaybackAfterRebufferMs, maxHeapAllocationPercent, minBackBufferMemoryReservePercent, minBufferMemoryReservePercent);
+        }
+    }
+
+    @ReactProp(name = PROP_CACHE)
+    public void setCache(final ReactExoplayerView videoView, @Nullable ReadableMap cacheConfig) {
+        if (cacheConfig != null) {
+            Context context = videoView.getContext();
+
+            String configDir = cacheConfig.hasKey(PROP_CACHE_CONFIG_DIR) ? cacheConfig.getString(PROP_CACHE_CONFIG_DIR) : null;
+            int configMaxSizeBytes = cacheConfig.hasKey(PROP_CACHE_CONFIG_MAX_SIZE_BYTES) ? cacheConfig.getInt(PROP_CACHE_CONFIG_MAX_SIZE_BYTES) : 0;
+
+            String cacheDir = configDir != null ? configDir : "videos"; // Default: use videos subdirectory in app cache dir
+            int cacheMaxSizeBytes = configMaxSizeBytes > 0 ? configMaxSizeBytes : 100 * 1024 * 1024; // Default: 100MB
+
+            videoView.setCache(
+                cacheDir.startsWith("/") ? cacheDir : new File(context.getCacheDir(), cacheDir).getAbsolutePath(),
+                cacheMaxSizeBytes
+            );
+        } else {
+            videoView.setCache(null, null);
         }
     }
 

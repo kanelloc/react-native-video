@@ -534,6 +534,10 @@ Video.propTypes = {
   useTextureView: PropTypes.bool,
   useSecureView: PropTypes.bool,
   hideShutterView: PropTypes.bool,
+  cache: PropTypes.shape({
+    dir: PropTypes.string,
+    maxSizeBytes: PropTypes.number,
+  }),
   onLoadStart: PropTypes.func,
   onPlaybackStateChanged: PropTypes.func,
   onLoad: PropTypes.func,

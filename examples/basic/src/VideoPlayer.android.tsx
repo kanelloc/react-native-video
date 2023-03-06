@@ -705,6 +705,10 @@ class VideoPlayer extends Component {
     return (
       <TouchableOpacity style={viewStyle}>
         <Video
+          cache={{
+            dir: "videos",
+            maxSizeBytes: 100 * 1024 * 1024,
+          }}
           ref={(ref: Video) => {
             this.video = ref
           }}

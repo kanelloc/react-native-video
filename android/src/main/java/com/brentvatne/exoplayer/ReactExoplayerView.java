@@ -5,6 +5,7 @@ import static com.google.android.exoplayer2.C.CONTENT_TYPE_HLS;
 import static com.google.android.exoplayer2.C.CONTENT_TYPE_OTHER;
 import static com.google.android.exoplayer2.C.CONTENT_TYPE_SS;
 
+import java.io.File;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
@@ -47,6 +48,7 @@ import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.ExoPlayer;
 import com.google.android.exoplayer2.Timeline;
 import com.google.android.exoplayer2.Tracks;
+import com.google.android.exoplayer2.database.ExoDatabaseProvider;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManager;
 import com.google.android.exoplayer2.drm.DefaultDrmSessionManagerProvider;
 import com.google.android.exoplayer2.drm.DrmSessionEventListener;
@@ -76,6 +78,8 @@ import com.google.android.exoplayer2.trackselection.ExoTrackSelection;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
 import com.google.android.exoplayer2.trackselection.TrackSelectionOverride;
 import com.google.android.exoplayer2.ui.PlayerControlView;
+import com.google.android.exoplayer2.upstream.cache.LeastRecentlyUsedCacheEvictor;
+import com.google.android.exoplayer2.upstream.cache.SimpleCache;
 import com.google.android.exoplayer2.upstream.BandwidthMeter;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DataSpec;
@@ -110,6 +114,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.lang.Integer;
+import javax.annotation.Nullable;
 
 @SuppressLint("ViewConstructor")
 class ReactExoplayerView extends FrameLayout implements
@@ -177,6 +182,9 @@ class ReactExoplayerView extends FrameLayout implements
     private double minBackBufferMemoryReservePercent = ReactExoplayerView.DEFAULT_MIN_BACK_BUFFER_MEMORY_RESERVE;
     private double minBufferMemoryReservePercent = ReactExoplayerView.DEFAULT_MIN_BUFFER_MEMORY_RESERVE;
     private Handler mainHandler;
+
+    private String cacheDir = null;
+    private Integer cacheMaxSizeBytes = null;
 
     // Props from React
     private int backBufferDurationMs = DefaultLoadControl.DEFAULT_BACK_BUFFER_DURATION_MS;
@@ -565,7 +573,7 @@ class ReactExoplayerView extends FrameLayout implements
                                     eventEmitter.error("Failed to initialize DRM Session Manager Framework!", new Exception("DRM Session Manager Framework failure!"), "3003");
                                     return;
                                 }
-                                    
+
                                 if (activity == null) {
                                     Log.e("ExoPlayer Exception", "Failed to initialize Player!");
                                     eventEmitter.error("Failed to initialize Player!", new Exception("Current Activity is null!"), "1001");
@@ -1951,6 +1959,40 @@ class ReactExoplayerView extends FrameLayout implements
         minBufferMemoryReservePercent = newMinBufferMemoryReservePercent;
         releasePlayer();
         initializePlayer();
+    }
+
+    public void setCache(@Nullable String dir, @Nullable Integer maxSizeBytes) {
+        SimpleCache cache = DataSourceUtil.getCache();
+
+        if (dir == null || maxSizeBytes == null) {
+            if (cache != null) {
+                cache.release();
+                DataSourceUtil.setCache(null);
+            }
+            cacheDir = null;
+            cacheMaxSizeBytes = null;
+            return;
+        }
+
+        if (dir.equals(cacheDir) && maxSizeBytes.equals(cacheMaxSizeBytes)) {
+            return;
+        }
+
+        cacheDir = dir;
+        cacheMaxSizeBytes = maxSizeBytes;
+
+        if (cache != null) {
+            cache.release();
+            DataSourceUtil.setCache(null);
+        }
+
+        DataSourceUtil.setCache(
+            new SimpleCache(
+               new File(dir),
+               new LeastRecentlyUsedCacheEvictor(maxSizeBytes),
+               new ExoDatabaseProvider(themedReactContext)
+           )
+        );
     }
 
     public void setDrmType(UUID drmType) {

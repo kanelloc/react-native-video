@@ -9,6 +9,8 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 import com.google.android.exoplayer2.upstream.DefaultDataSource;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
+import com.google.android.exoplayer2.upstream.cache.CacheDataSource;
+import com.google.android.exoplayer2.upstream.cache.SimpleCache;
 import com.google.android.exoplayer2.util.Util;
 
 import okhttp3.Call;
@@ -24,6 +26,8 @@ public class DataSourceUtil {
     private static DataSource.Factory rawDataSourceFactory = null;
     private static DataSource.Factory defaultDataSourceFactory = null;
     private static HttpDataSource.Factory defaultHttpDataSourceFactory = null;
+    private static SimpleCache cache = null;
+    private static boolean cacheChanged = false;
     private static String userAgent = null;
 
     public static void setUserAgent(String userAgent) {
@@ -50,7 +54,7 @@ public class DataSourceUtil {
 
 
     public static DataSource.Factory getDefaultDataSourceFactory(ReactContext context, DefaultBandwidthMeter bandwidthMeter, Map<String, String> requestHeaders) {
-        if (defaultDataSourceFactory == null || (requestHeaders != null && !requestHeaders.isEmpty())) {
+        if (defaultDataSourceFactory == null || (requestHeaders != null && !requestHeaders.isEmpty()) || cacheChanged) {
             defaultDataSourceFactory = buildDataSourceFactory(context, bandwidthMeter, requestHeaders);
         }
         return defaultDataSourceFactory;
@@ -76,8 +80,17 @@ public class DataSourceUtil {
     }
 
     private static DataSource.Factory buildDataSourceFactory(ReactContext context, DefaultBandwidthMeter bandwidthMeter, Map<String, String> requestHeaders) {
-        return new DefaultDataSource.Factory(context,
-                buildHttpDataSourceFactory(context, bandwidthMeter, requestHeaders));
+        DataSource.Factory dataSource = new DefaultDataSource.Factory(context,
+                    buildHttpDataSourceFactory(context, bandwidthMeter, requestHeaders));
+
+        if (cache != null) {
+            cacheChanged = false;
+            return new CacheDataSource.Factory()
+                    .setCache(cache)
+                    .setUpstreamDataSourceFactory(dataSource);
+        } else {
+            return dataSource;
+        }
     }
 
     private static HttpDataSource.Factory buildHttpDataSourceFactory(ReactContext context, DefaultBandwidthMeter bandwidthMeter, Map<String, String> requestHeaders) {
@@ -94,4 +107,13 @@ public class DataSourceUtil {
 
         return okHttpDataSourceFactory;
     }
+
+     public static SimpleCache getCache() {
+        return DataSourceUtil.cache;
+     }
+
+     public static void setCache(SimpleCache cache) {
+        DataSourceUtil.cache = cache;
+        DataSourceUtil.cacheChanged = true;
+     }
 }
